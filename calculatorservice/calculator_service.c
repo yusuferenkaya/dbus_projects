@@ -25,15 +25,17 @@ static const gchar introspection_xml[] =
   "      <arg type='d' name='result' direction='out'/>"
   "    </method>"
   "    <property type='as' name='History' access='read'/>"
+  "    <property type='d' name='LastOperationResult' access='read'/>"
   "  </interface>"
   "</node>";
 
 typedef struct {
     GList *history;
+    gdouble last_result;
 } Calculator;
 
 static GDBusNodeInfo *introspection_data = NULL;
-static Calculator calculator = { NULL };
+static Calculator calculator = { NULL, 0.0 };
 
 /* Method Call Handler */
 static void
@@ -53,20 +55,14 @@ handle_method_call (GDBusConnection       *connection,
         g_variant_get(parameters, "(dd)", &a, &b);
         result = a + b;
         entry = g_strdup_printf("Added %g + %g = %g", a, b, result);
-        calculator.history = g_list_append(calculator.history, entry);
-        g_dbus_method_invocation_return_value(invocation, g_variant_new("(d)", result));
     } else if (g_strcmp0(method_name, "Subtract") == 0) {
         g_variant_get(parameters, "(dd)", &a, &b);
         result = a - b;
         entry = g_strdup_printf("Subtracted %g - %g = %g", a, b, result);
-        calculator.history = g_list_append(calculator.history, entry);
-        g_dbus_method_invocation_return_value(invocation, g_variant_new("(d)", result));
     } else if (g_strcmp0(method_name, "Multiply") == 0) {
         g_variant_get(parameters, "(dd)", &a, &b);
         result = a * b;
         entry = g_strdup_printf("Multiplied %g * %g = %g", a, b, result);
-        calculator.history = g_list_append(calculator.history, entry);
-        g_dbus_method_invocation_return_value(invocation, g_variant_new("(d)", result));
     } else if (g_strcmp0(method_name, "Divide") == 0) {
         g_variant_get(parameters, "(dd)", &a, &b);
         if (b == 0) {
@@ -75,9 +71,27 @@ handle_method_call (GDBusConnection       *connection,
         }
         result = a / b;
         entry = g_strdup_printf("Divided %g / %g = %g", a, b, result);
-        calculator.history = g_list_append(calculator.history, entry);
-        g_dbus_method_invocation_return_value(invocation, g_variant_new("(d)", result));
+    } else {
+        return;
     }
+
+    calculator.history = g_list_append(calculator.history, entry);
+    calculator.last_result = result;
+
+    /* Emit PropertiesChanged signal for LastOperationResult */
+    GVariantBuilder *builder = g_variant_builder_new(G_VARIANT_TYPE_ARRAY);
+    g_variant_builder_add(builder, "{sv}", "LastOperationResult", g_variant_new_double(calculator.last_result));
+
+    g_dbus_connection_emit_signal(connection,
+                                  NULL,
+                                  object_path,
+                                  "org.freedesktop.DBus.Properties",
+                                  "PropertiesChanged",
+                                  g_variant_new("(sa{sv}as)", "calculator.service", builder, NULL),
+                                  NULL);
+    g_variant_builder_unref(builder);
+
+    g_dbus_method_invocation_return_value(invocation, g_variant_new("(d)", result));
 }
 
 /* Property Handler */
@@ -104,6 +118,8 @@ handle_get_property (GDBusConnection  *connection,
         
         ret = g_variant_new_strv((const gchar * const *)history_array, -1);
         g_strfreev(history_array);
+    } else if (g_strcmp0(property_name, "LastOperationResult") == 0) {
+        ret = g_variant_new_double(calculator.last_result);
     }
 
     return ret;
@@ -156,7 +172,6 @@ main (int argc, char *argv[])
 
     g_type_init ();
 
-   
     introspection_data = g_dbus_node_info_new_for_xml (introspection_xml, NULL);
     g_assert (introspection_data != NULL);
 
