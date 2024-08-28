@@ -1,96 +1,89 @@
-from pydbus.generic import signal
-from pydbus import SessionBus
+import dbus
+import dbus.service
+from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 import os
 
-class RemoteMediaPlayer:
-    """
-    <node>
-        <interface name='com.kentkart.RemoteMediaPlayer'>
-            <property name='Version' type='s' access='read'/>
-            <property name='SourceDirectories' type='as' access='read'/>
-            <property name='AllMedia' type='ao' access='read'/>
-            <method name='Scan'>
-                <arg type='b' name='success' direction='out'/>
-            </method>
-            <method name='AddSource'>
-                <arg type='s' name='path' direction='in'/>
-                <arg type='b' name='success' direction='out'/>
-            </method>
-            <signal name='PropertiesChanged'>
-                <arg type='a{sv}' name='changed_properties'/>
-                <arg type='as' name='invalidated_properties'/>
-            </signal>
-        </interface>
-    </node>
-    """
+class Media(dbus.service.Object):
+    def __init__(self, bus, object_path, file_path, media_type):
+        super().__init__(bus, object_path)
+        self.file_path = file_path
+        self.media_type = media_type
 
-    PropertiesChanged = signal()
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer.Media', in_signature='', out_signature='b')
+    def Play(self):
+        print(f"Playing {self.file_path}")
+        return True  # Simulate successful playback
 
-    def __init__(self):
-        self._version = "1.0"
+    @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
+    def Get(self, interface_name, property_name):
+        if property_name == 'Type':
+            return self.media_type
+        elif property_name == 'File':
+            return self.file_path
+        else:
+            raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',
+                                                'No such property {}'.format(property_name))
+
+class RemoteMediaPlayer(dbus.service.Object):
+    def __init__(self, bus, object_path):
+        super().__init__(bus, object_path)
+        self.bus = bus
         self._source_directories = []
-        self._all_media = []
+        self._media_objects = {}
+        self._object_id = 0
 
-    @property
-    def Version(self):
-        return self._version
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='s', out_signature='b')
+    def AddSource(self, path):
+        if os.path.isdir(path):
+            self._source_directories.append(path)
+            self.Scan()
+            return True
+        return False
 
-    @property
-    def SourceDirectories(self):
-        return self._source_directories
-
-    @property
-    def AllMedia(self):
-        return self._all_media
-
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='b')
     def Scan(self):
-        print("Scanning media directories...")
-        self._all_media.clear()
-
         for directory in self._source_directories:
             if os.path.exists(directory):
                 for file_name in os.listdir(directory):
                     if file_name.endswith(('.wav', '.ogg', '.mp3', '.mp4')):
                         media_path = os.path.join(directory, file_name)
-                        object_path = self.generate_object_path(media_path)
-                        self._all_media.append(object_path)
-
-        self.PropertiesChanged(
-            {"AllMedia": self.AllMedia},
-            []
-        )
-
+                        object_path = self.generate_object_path()
+                        media = Media(self.bus, object_path, media_path, self.determine_media_type(file_name))
+                        self._media_objects[object_path] = media
         return True
 
-    def AddSource(self, path):
-        if os.path.isdir(path):
-            self._source_directories.append(path)
-            print(f"Source directory {path} added.")
-
-            self.PropertiesChanged(
-                {"SourceDirectories": self.SourceDirectories},
-                []
-            )
-
-            self.Scan()
-
-            return True
+    @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
+    def Get(self, interface_name, property_name):
+        if property_name == 'AllMedia':
+            return self.GetAllMedia()
         else:
-            print(f"Invalid directory: {path}")
-            return False
+            raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',
+                                                'No such property {}'.format(property_name))
 
-    def generate_object_path(self, media_path):
-        
-        return "/com/kentkart/RemoteMediaPlayer/Media/" + str(abs(hash(media_path)))
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='as')
+    def GetAllMedia(self):
+        return list(self._media_objects.keys())
 
+    def generate_object_path(self):
+        self._object_id += 1
+        return f"/com/kentkart/RemoteMediaPlayer/Media{self._object_id}"
 
-if __name__ == "__main__":
-    bus = SessionBus()
-    player = RemoteMediaPlayer()
+    def determine_media_type(self, file_name):
+        if file_name.endswith('.mp3') or file_name.endswith('.wav'):
+            return 'Audio'
+        elif file_name.endswith('.mp4') or file_name.endswith('.ogg'):
+            return 'Video'
+        return 'Unknown'
 
-    bus.publish("com.kentkart.RemoteMediaPlayer", player)
+def main():
+    DBusGMainLoop(set_as_default=True)
+    bus = dbus.SessionBus()
+    service_name = dbus.service.BusName("com.kentkart.RemoteMediaPlayer", bus)
+    remote_media_player = RemoteMediaPlayer(bus, "/com/kentkart/RemoteMediaPlayer")
     print("Remote Media Player Service is running...")
-
     loop = GLib.MainLoop()
     loop.run()
+
+if __name__ == '__main__':
+    main()
