@@ -1,19 +1,23 @@
+from typing import List
 import dbus.service
 import os
 from media import Media
 from audio import Audio
 from video import Video
 
+import xml.etree.ElementTree as ET
+from custom_dbus_service import DBusProperty, CustomDBusService
+
 MY_INTERFACE = 'com.kentkart.RemoteMediaPlayer'
 
-class RemoteMediaPlayer(dbus.service.Object):
+class RemoteMediaPlayer(CustomDBusService):
     def __init__(self, bus, object_path):
-        super().__init__(bus, object_path)
-        self.bus = bus
+        super().__init__(bus, object_path, MY_INTERFACE)
         self._source_directories = []
         self._media_objects = {}
         self._object_id = 0
         self.version = "1.0"
+        
 
     @dbus.service.method(MY_INTERFACE, in_signature='s', out_signature='b')
     def AddSource(self, path):
@@ -61,7 +65,7 @@ class RemoteMediaPlayer(dbus.service.Object):
     def Get(self, interface_name, property_name):
         if interface_name == MY_INTERFACE:
             if property_name == 'AllMedia':
-                return list(self._media_objects.keys())
+                return list(self._media_objects.keys()) if len(self._media_objects) > 0 else ['']
             elif property_name == 'SourceDirectories':
                 return self._source_directories
             elif property_name == 'Version':
@@ -82,15 +86,17 @@ class RemoteMediaPlayer(dbus.service.Object):
                 'com.kentkart.UnknownInterface',
                 f'The object does not implement the {interface_name} interface'
             )
+        
+    
+    def GetDBusProperties(self) -> List[DBusProperty]:
+        props = []
+        
+        props.append(DBusProperty('Version', 'u', 'read'))
+        props.append(DBusProperty('SourceDirectories', 'as', 'read'))
+        props.append(DBusProperty('AllMedia', 'ao', 'read'))
+        
+        return props
 
-
-
-    # Method to get all media objects
-    @dbus.service.method(MY_INTERFACE, in_signature='', out_signature='as')
-    def GetAllMedia(self):
-        if not self._media_objects:
-            raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.NoMedia', 'No media available')
-        return list(self._media_objects.keys())
 
     def generate_object_path(self):
         self._object_id += 1
