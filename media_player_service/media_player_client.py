@@ -9,7 +9,8 @@ def display_menu():
     print("4. Play Media")
     print("5. View Media Properties")
     print("6. Extract Audio from Video")
-    print("7. Exit")
+    print("7. Reset Media")  
+    print("8. Exit") 
 
 def get_user_input(prompt):
     return input(prompt).strip()
@@ -72,8 +73,29 @@ def main():
                 media_path = media_list[media_choice]
                 media_object = bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
                 media_interface = dbus.Interface(media_object, dbus_interface='org.freedesktop.DBus.Properties')
+                
                 media_type = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
                 print("Type:", media_type)
+                
+                media_file = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'File')
+                print("File:", media_file)
+                
+                if media_type == 'Audio':
+                    sample_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'SampleRate')
+                    length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Length')
+                    channels = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Channels')
+                    print("Sample Rate:", sample_rate)
+                    print("Length:", length)
+                    print("Channels:", channels)
+                
+                elif media_type == 'Video':
+                    length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Length')
+                    dimensions = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Dimensions')
+                    frame_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'FrameRate')
+                    width, height = dimensions[0], dimensions[1]
+                    print("Length:", length)
+                    print("Dimensions: ({} x {})".format(width, height))
+                    print("Frame Rate:", frame_rate)
 
             elif choice == '6':
                 media_list = properties_interface.Get('com.kentkart.RemoteMediaPlayer', 'AllMedia')
@@ -89,7 +111,12 @@ def main():
                 else:
                     print("Failed to extract audio.")
 
-            elif choice == '7':
+            elif choice == '7': 
+                if player_interface.ResetMedia():  
+                    print("All media reset successfully.")
+                else:
+                    print("Failed to reset media.")
+            elif choice == '8':  
                 print("Exiting...")
                 break
             else:

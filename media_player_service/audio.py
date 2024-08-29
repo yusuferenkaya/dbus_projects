@@ -1,33 +1,37 @@
 # audio.py
 
 from media import Media
+import dbus.service
+import subprocess
 
 class Audio(Media):
-    """
-    <node>
-        <interface name='com.kentkart.RemoteMediaPlayer.Media.Audio'>
-            <property name='SampleRate' type='i' access='read'/>
-            <property name='Length' type='d' access='read'/>
-            <property name='Channels' type='i' access='read'/>
-        </interface>
-    </node>
-    """
+    def __init__(self, bus, object_path, file_path):
+        super().__init__(bus, object_path, file_path, 'Audio')
+        self.sample_rate, self.length, self.channels = self.get_audio_properties(file_path)
 
-    def __init__(self, file_path, sample_rate, length, channels):
-        super().__init__(file_path)
-        self._type = 'Audio'
-        self._sample_rate = sample_rate
-        self._length = length
-        self._channels = channels
+    def get_audio_properties(self, file_path):
+        try:
+            command = [
+                'ffprobe', '-v', 'error', '-select_streams', 'a:0', 
+                '-show_entries', 'stream=sample_rate,channels,duration', 
+                '-of', 'default=noprint_wrappers=1:nokey=1', file_path
+            ]
+            output = subprocess.check_output(command).decode().split('\n')
+            sample_rate = int(output[0].strip())
+            channels = int(output[1].strip())
+            length = float(output[2].strip())
+            return sample_rate, length, channels
+        except Exception as e:
+            print(f"Error extracting audio properties: {e}")
+            return 0, 0, 0  # Return default values in case of error
 
-    @property
-    def SampleRate(self):
-        return self._sample_rate
-
-    @property
-    def Length(self):
-        return self._length
-
-    @property
-    def Channels(self):
-        return self._channels
+    @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
+    def Get(self, interface_name, property_name):
+        if interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Audio':
+            if property_name == 'SampleRate':
+                return self.sample_rate
+            elif property_name == 'Length':
+                return self.length
+            elif property_name == 'Channels':
+                return self.channels
+        return super().Get(interface_name, property_name)

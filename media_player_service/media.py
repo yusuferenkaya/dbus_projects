@@ -1,45 +1,40 @@
-# media.py
+import dbus.service
+import subprocess
+import threading
 
-import os
+class Media(dbus.service.Object):
+    def __init__(self, bus, object_path, file_path, media_type):
+        super().__init__(bus, object_path)
+        self.file_path = file_path
+        self.media_type = media_type
 
-class Media:
-    """
-    <node>
-        <interface name='com.kentkart.RemoteMediaPlayer.Media'>
-            <property name='Type' type='s' access='read'/>
-            <property name='File' type='s' access='read'/>
-            <method name='Play'>
-                <arg type='b' name='success' direction='out'/>
-            </method>
-        </interface>
-    </node>
-    """
-    def __init__(self, file_path):
-        self._file_path = file_path
-        self._type = self.determine_type(file_path)
-
-    @property
-    def Type(self):
-        return self._type
-
-    @property
-    def File(self):
-        return self._file_path
-
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer.Media', in_signature='', out_signature='b')
     def Play(self):
-        print(f"Playing {self._file_path}")
-        play_command = f"play {self._file_path}" if self._type in ['WAV', 'OGG', 'MP3'] else f"play_video {self._file_path}"
-        os.system(play_command)
-        return True
+        
+        print(f"Playing {self.file_path}")
+        try:
+            threading.Thread(target=self._play_media).start()
+            return True
+        except Exception as e:
+            print(f"Failed to initiate playback: {e}")
+            return False
 
-    def determine_type(self, file_path):
-        if file_path.endswith('.wav'):
-            return 'WAV'
-        elif file_path.endswith('.ogg'):
-            return 'OGG'
-        elif file_path.endswith('.mp3'):
-            return 'MP3'
-        elif file_path.endswith('.mp4'):
-            return 'MP4'
-        else:
-            return 'Unknown'
+    def _play_media(self):
+       
+        try:
+            
+            subprocess.run(['ffplay', '-autoexit', '-nodisp', self.file_path], check=True)
+            print(f"Finished playing {self.file_path}")
+        except subprocess.CalledProcessError:
+            print(f"Error during playback of {self.file_path}")
+
+    @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
+    def Get(self, interface_name, property_name):
+        
+        if interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
+            if property_name == 'Type':
+                return self.media_type
+            elif property_name == 'File':
+                return self.file_path
+        raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',
+                                            f'No such property {property_name}')
