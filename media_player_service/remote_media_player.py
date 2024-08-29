@@ -1,5 +1,6 @@
 import dbus.service
 import os
+import xml.etree.ElementTree as ET
 from media import Media
 from audio import Audio
 from video import Video
@@ -13,18 +14,37 @@ class RemoteMediaPlayer(dbus.service.Object):
         self._source_directories = []
         self._media_objects = {}
         self._object_id = 0
-        self.version = "1.0"
 
-    @dbus.service.method(MY_INTERFACE, in_signature='s', out_signature='b')
+    def Introspect(self, object_path, connection):
+        xml = super(RemoteMediaPlayer, self).Introspect(object_path, connection)
+
+        # Modify the XML to include properties in introspection
+        tree = ET.ElementTree(ET.fromstring(xml))
+        interface_element = tree.find(".//interface[@name='com.kentkart.RemoteMediaPlayer']")
+        if interface_element is not None:
+            for property_name, property_type in [('Version', 's'), ('SourceDirectories', 'as'), ('AllMedia', 'ao')]:
+                prop = ET.Element('property', {'name': property_name, 'type': property_type, 'access': 'read'})
+                interface_element.append(prop)
+
+        return ET.tostring(tree.getroot(), encoding='unicode')
+
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='s', out_signature='b')
     def AddSource(self, path):
         if os.path.isdir(path):
             self._source_directories.append(path)
             self.Scan()
-            self.PropertiesChanged(MY_INTERFACE, {"AllMedia": self.GetAllMedia(), "SourceDirectories": self._source_directories}, [])
+
+            # emitting the signal using method calls to get properties
+            self.PropertiesChanged(MY_INTERFACE, 
+                       {
+                           "AllMedia": dbus.Array(self.GetAllMedia(), signature='o'),
+                           "SourceDirectories": dbus.Array(self._source_directories, signature='s')
+                       }, 
+                       [])
             return True
         return False
 
-    @dbus.service.method(MY_INTERFACE, in_signature='', out_signature='b')
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='b')
     def Scan(self):
         for directory in self._source_directories:
             if os.path.exists(directory):
@@ -38,34 +58,37 @@ class RemoteMediaPlayer(dbus.service.Object):
                     self._media_objects[object_path] = media
         return True
 
-    @dbus.service.method(MY_INTERFACE, in_signature='', out_signature='b')
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='b')
     def ResetMedia(self):
         try:
+            # Unregistering all media objects from DBus
             for object_path, media_object in self._media_objects.items():
                 media_object.remove_from_connection()
+            # Clearing the dictionary for media objects
             self._media_objects.clear()
+            
+            # Emitting a signal to indicate that AllMedia is changed
             self.PropertiesChanged(MY_INTERFACE, {"AllMedia": []}, [])
+
             print("All media have been reset and unregistered from DBus.")
             return True
         except Exception as e:
             print(f"Failed to reset media: {e}")
             return False
 
-    # Signal method to indicate property changes
     @dbus.service.signal(dbus.PROPERTIES_IFACE, signature='sa{sv}as')
     def PropertiesChanged(self, interface_name, changed_properties, invalidated_properties):
-        print(f"Properties changed: {changed_properties}")
-
-    # Method to get properties based on the D-Bus interface
+        pass
+    
     @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
     def Get(self, interface_name, property_name):
         if interface_name == MY_INTERFACE:
             if property_name == 'AllMedia':
-                return list(self._media_objects.keys())
+                return self.GetAllMedia()
             elif property_name == 'SourceDirectories':
                 return self._source_directories
             elif property_name == 'Version':
-                return self.version
+                return "1.0"
         raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',
                                             'No such property {}'.format(property_name))
 
@@ -73,25 +96,23 @@ class RemoteMediaPlayer(dbus.service.Object):
     def GetAll(self, interface_name):
         if interface_name == MY_INTERFACE:
             return {
-                'Version': self.version,
+                'AllMedia': self.GetAllMedia(),
                 'SourceDirectories': self._source_directories,
-                'AllMedia': list(self._media_objects.keys())
+                'Version': "1.0"
             }
         else:
             raise dbus.exceptions.DBusException(
-                'com.kentkart.UnknownInterface',
-                f'The object does not implement the {interface_name} interface'
-            )
-
-
-
-    # Method to get all media objects
-    @dbus.service.method(MY_INTERFACE, in_signature='', out_signature='as')
-    def GetAllMedia(self):
-        if not self._media_objects:
-            raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.NoMedia', 'No media available')
-        return list(self._media_objects.keys())
+                'com.example.UnknownInterface',
+                'The RemoteMediaPlayer object does not implement the %s interface'
+                % interface_name)
 
     def generate_object_path(self):
         self._object_id += 1
         return f"/com/kentkart/RemoteMediaPlayer/Media{self._object_id}"
+
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='as')
+    def GetAllMedia(self):
+        if not self._media_objects:
+            raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.NoMedia',
+                                                'No media available')
+        return list(self._media_objects.keys())
