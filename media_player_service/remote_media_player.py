@@ -33,7 +33,6 @@ class RemoteMediaPlayer(dbus.service.Object):
             self._source_directories.append(path)
             self.Scan()
 
-            # emitting the signal using method calls to get properties
             self.PropertiesChanged(MY_INTERFACE, 
                        {
                            "AllMedia": dbus.Array(self.GetAllMedia(), signature='o'),
@@ -64,7 +63,7 @@ class RemoteMediaPlayer(dbus.service.Object):
                 media_object.remove_from_connection()
             self._media_objects.clear()
             
-            self.PropertiesChanged(MY_INTERFACE, {"AllMedia": []}, [])
+            self.PropertiesChanged(MY_INTERFACE, {"AllMedia": dbus.Array([], signature='o'), "SourceDirectories": dbus.Array([], signature='s')}, [])
 
             print("All media have been reset and unregistered from DBus.")
             return True
@@ -80,11 +79,11 @@ class RemoteMediaPlayer(dbus.service.Object):
     def Get(self, interface_name, property_name):
         if interface_name == MY_INTERFACE:
             if property_name == 'AllMedia':
-                return self.GetAllMedia()
+                return dbus.Array(self.GetAllMedia(), signature='o')  # Ensure empty list is returned properly
             elif property_name == 'SourceDirectories':
-                return self._source_directories
+                return dbus.Array(self._source_directories, signature='s')  # Ensure empty list is returned properly
             elif property_name == 'Version':
-                return "1.0"
+                return dbus.String("1.0")
         raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',
                                             'No such property {}'.format(property_name))
 
@@ -92,9 +91,9 @@ class RemoteMediaPlayer(dbus.service.Object):
     def GetAll(self, interface_name):
         if interface_name == MY_INTERFACE:
             return {
-                'AllMedia': self.GetAllMedia(),
-                'SourceDirectories': self._source_directories,
-                'Version': "1.0"
+                'AllMedia': dbus.Array(self.GetAllMedia(), signature='o'),
+                'SourceDirectories': dbus.Array(self._source_directories, signature='s'),
+                'Version': dbus.String("1.0")
             }
         else:
             raise dbus.exceptions.DBusException(
@@ -109,6 +108,5 @@ class RemoteMediaPlayer(dbus.service.Object):
     @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='as')
     def GetAllMedia(self):
         if not self._media_objects:
-            raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.NoMedia',
-                                                'No media available')
+            return dbus.Array([], signature='o') 
         return list(self._media_objects.keys())

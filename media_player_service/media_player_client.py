@@ -130,7 +130,7 @@ def main():
                 else:
                     print("Failed to reset media.")
 
-            elif choice == '8':  # Fetch and display source directories
+            elif choice == '8': 
                 source_directories = properties_interface.Get('com.kentkart.RemoteMediaPlayer', 'SourceDirectories')
                 if not source_directories:
                     print("No source directories available.")

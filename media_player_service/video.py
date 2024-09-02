@@ -6,18 +6,18 @@ from fractions import Fraction
 from media import Media
 
 class Video(Media):
-    interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Video'
-
     def __init__(self, bus, object_path, file_path):
-        super().__init__(bus, object_path, file_path, 'Video')
+        interfaces = ['com.kentkart.RemoteMediaPlayer.Media', 'com.kentkart.RemoteMediaPlayer.Media.Video']
+        super().__init__(bus, object_path, file_path, interfaces, 'Video')
         self.dimensions, self.frame_rate = self.extract_video_properties()
+        self.interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Video'  # Explicitly set interface name
 
     def extract_video_properties(self):
         try:
             probe = ffmpeg.probe(self.file_path)
             video_info = next(stream for stream in probe['streams'] if stream['codec_type'] == 'video')
 
-            self.length = float(video_info.get('duration', 0)) 
+            self.length = float(video_info.get('duration', 0))  # Update length in Media class
             width = int(video_info.get('width', 0))
             height = int(video_info.get('height', 0))
             dimensions = (width, height)
@@ -32,18 +32,28 @@ class Video(Media):
             print(f"Error extracting video properties: {e}")
             return (0, 0), 0.0
 
-    def GetDBusProperties(self):
-        return super().GetDBusProperties() + [
-            {'name': 'Dimensions', 'type': '(ii)', 'access': 'read'},
-            {'name': 'FrameRate', 'type': 'd', 'access': 'read'}
-        ]
+    def GetDBusProperties(self, interface_name):
+        if interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Video':
+            return [
+                {'name': 'Dimensions', 'type': '(ii)', 'access': 'read'},
+                {'name': 'FrameRate', 'type': 'd', 'access': 'read'}
+            ]
+        elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
+            return super().GetDBusProperties(interface_name)
+        return []
 
     @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
     def Get(self, interface_name, property_name):
-        print(f"Get called for interface: {interface_name}, property: {property_name}")  
-        if interface_name == self.interface_name:
+        print(f"Get called for interface: {interface_name}, property: {property_name}")
+        if interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Video':
             if property_name == 'Dimensions':
-                return dbus.Struct(self.dimensions)
+                return dbus.Struct(self.dimensions, signature='ii')
             elif property_name == 'FrameRate':
                 return dbus.Double(self.frame_rate)
-        return super().Get(interface_name, property_name)
+            elif property_name == 'Length':  # Move Length property here
+                return dbus.Double(self.length)
+        elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
+            return super().Get(interface_name, property_name)
+        else:
+            raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',
+                                                f'No such property {property_name}')
