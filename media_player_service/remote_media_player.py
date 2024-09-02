@@ -18,7 +18,6 @@ class RemoteMediaPlayer(dbus.service.Object):
     def Introspect(self, object_path, connection):
         xml = super(RemoteMediaPlayer, self).Introspect(object_path, connection)
 
-        # Modify the XML to include properties in introspection
         tree = ET.ElementTree(ET.fromstring(xml))
         interface_element = tree.find(".//interface[@name='com.kentkart.RemoteMediaPlayer']")
         if interface_element is not None:
@@ -61,13 +60,10 @@ class RemoteMediaPlayer(dbus.service.Object):
     @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='b')
     def ResetMedia(self):
         try:
-            # Unregistering all media objects from DBus
             for object_path, media_object in self._media_objects.items():
                 media_object.remove_from_connection()
-            # Clearing the dictionary for media objects
             self._media_objects.clear()
             
-            # Emitting a signal to indicate that AllMedia is changed
             self.PropertiesChanged(MY_INTERFACE, {"AllMedia": []}, [])
 
             print("All media have been reset and unregistered from DBus.")
