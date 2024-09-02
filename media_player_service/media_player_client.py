@@ -10,7 +10,8 @@ def display_menu():
     print("5. View Media Properties")
     print("6. Extract Audio from Video")
     print("7. Reset Media")  
-    print("8. Exit") 
+    print("8. List Source Directories")  # New option to list source directories
+    print("9. Exit") 
 
 def get_user_input(prompt):
     return input(prompt).strip()
@@ -49,74 +50,96 @@ def main():
 
             elif choice == '3':
                 media_list = properties_interface.Get('com.kentkart.RemoteMediaPlayer', 'AllMedia')
-                for idx, media_path in enumerate(media_list, start=1):
-                    print(f"{idx}. {media_path}")
+                if not media_list:
+                    print("No media available.")
+                else:
+                    for idx, media_path in enumerate(media_list, start=1):
+                        print(f"{idx}. {media_path}")
 
             elif choice == '4':
                 media_list = properties_interface.Get('com.kentkart.RemoteMediaPlayer', 'AllMedia')
-                for idx, media_path in enumerate(media_list, start=1):
-                    print(f"{idx}. {media_path}")
-                media_choice = int(get_user_input("Select media to play: ")) - 1
-                media_path = media_list[media_choice]
-                media_object = bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
-                media_interface = dbus.Interface(media_object, dbus_interface='com.kentkart.RemoteMediaPlayer.Media')
-                if media_interface.Play():
-                    print("Media is playing...")
+                if not media_list:
+                    print("No media available.")
                 else:
-                    print("Failed to play media.")
+                    for idx, media_path in enumerate(media_list, start=1):
+                        print(f"{idx}. {media_path}")
+                    media_choice = int(get_user_input("Select media to play: ")) - 1
+                    media_path = media_list[media_choice]
+                    media_object = bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
+                    media_interface = dbus.Interface(media_object, dbus_interface='com.kentkart.RemoteMediaPlayer.Media')
+                    if media_interface.Play():
+                        print("Media is playing...")
+                    else:
+                        print("Failed to play media.")
 
             elif choice == '5':
                 media_list = properties_interface.Get('com.kentkart.RemoteMediaPlayer', 'AllMedia')
-                for idx, media_path in enumerate(media_list, start=1):
-                    print(f"{idx}. {media_path}")
-                media_choice = int(get_user_input("Select media to view properties: ")) - 1
-                media_path = media_list[media_choice]
-                media_object = bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
-                media_interface = dbus.Interface(media_object, dbus_interface='org.freedesktop.DBus.Properties')
-                
-                media_type = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
-                print("Type:", media_type)
-                
-                media_file = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'File')
-                print("File:", media_file)
-                
-                if media_type == 'Audio':
-                    sample_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'SampleRate')
-                    length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Length')
-                    channels = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Channels')
-                    print("Sample Rate:", sample_rate)
-                    print("Length:", length)
-                    print("Channels:", channels)
-                
-                elif media_type == 'Video':
-                    length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Length')
-                    dimensions = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Dimensions')
-                    frame_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'FrameRate')
-                    width, height = dimensions[0], dimensions[1]
-                    print("Length:", length)
-                    print("Dimensions: ({} x {})".format(width, height))
-                    print("Frame Rate:", frame_rate)
+                if not media_list:
+                    print("No media available.")
+                else:
+                    for idx, media_path in enumerate(media_list, start=1):
+                        print(f"{idx}. {media_path}")
+                    media_choice = int(get_user_input("Select media to view properties: ")) - 1
+                    media_path = media_list[media_choice]
+                    media_object = bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
+                    media_interface = dbus.Interface(media_object, dbus_interface='org.freedesktop.DBus.Properties')
+                    
+                    media_type = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
+                    print("Type:", media_type)
+                    
+                    media_file = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'File')
+                    print("File:", media_file)
+                    
+                    if media_type == 'Audio':
+                        sample_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'SampleRate')
+                        length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Length')
+                        channels = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Channels')
+                        print("Sample Rate:", sample_rate)
+                        print("Length:", length)
+                        print("Channels:", channels)
+                    
+                    elif media_type == 'Video':
+                        length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Length')
+                        dimensions = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Dimensions')
+                        frame_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'FrameRate')
+                        width, height = dimensions[0], dimensions[1]
+                        print("Length:", length)
+                        print("Dimensions: ({} x {})".format(width, height))
+                        print("Frame Rate:", frame_rate)
 
             elif choice == '6':
                 media_list = properties_interface.Get('com.kentkart.RemoteMediaPlayer', 'AllMedia')
-                for idx, media_path in enumerate(media_list, start=1):
-                    print(f"{idx}. {media_path}")
-                media_choice = int(get_user_input("Select video media to extract audio: ")) - 1
-                media_path = media_list[media_choice]
-                media_object = bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
-                media_interface = dbus.Interface(media_object, dbus_interface='com.kentkart.RemoteMediaPlayer.Media.Video')
-                filename = get_user_input("Enter filename for extracted audio: ")
-                if media_interface.ExtractAudio(filename):
-                    print("Audio extracted successfully.")
+                if not media_list:
+                    print("No media available.")
                 else:
-                    print("Failed to extract audio.")
+                    for idx, media_path in enumerate(media_list, start=1):
+                        print(f"{idx}. {media_path}")
+                    media_choice = int(get_user_input("Select video media to extract audio: ")) - 1
+                    media_path = media_list[media_choice]
+                    media_object = bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
+                    media_interface = dbus.Interface(media_object, dbus_interface='com.kentkart.RemoteMediaPlayer.Media.Video')
+                    filename = get_user_input("Enter filename for extracted audio: ")
+                    if media_interface.ExtractAudio(filename):
+                        print("Audio extracted successfully.")
+                    else:
+                        print("Failed to extract audio.")
 
             elif choice == '7': 
                 if player_interface.ResetMedia():  
                     print("All media reset successfully.")
                 else:
                     print("Failed to reset media.")
-            elif choice == '8':  
+
+            elif choice == '8':  # Fetch and display source directories
+                source_directories = properties_interface.Get('com.kentkart.RemoteMediaPlayer', 'SourceDirectories')
+                if not source_directories:
+                    print("No source directories available.")
+                else:
+                    print("Source Directories:")
+                    for idx, source_dir in enumerate(source_directories, start=1):
+                        print(f"{idx}. {source_dir}")
+
+            elif choice == '9':  
                 print("Exiting...")
                 break
             else:
