@@ -153,7 +153,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
 
     def generate_object_path(self):
         self._object_id += 1
-        return f"/com/kentkart/RemoteMediaPlayer/Media{self._object_id}"
+        return f"/com/kentkart/RemoteMediaPlayer/Media/{self._object_id}"  # Added '/' between 'Media' and the ID
 
     @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='as')
     def GetAllMedia(self):
