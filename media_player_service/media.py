@@ -1,6 +1,7 @@
 import dbus.service
 import subprocess
 import threading
+from overrides import override
 from custom_introspectable import CustomIntrospectable
 
 class Media(CustomIntrospectable):
@@ -10,11 +11,13 @@ class Media(CustomIntrospectable):
         self.media_type = media_type
         self.length = 0
 
+    @override
     def GetDBusProperties(self, interface_name):
         if interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
             return [
                 {'name': 'Type', 'type': 's', 'access': 'read'},
                 {'name': 'File', 'type': 's', 'access': 'read'},
+                {'name': 'Length', 'type': 'd', 'access': 'read'}
             ]
         return []
 
@@ -43,6 +46,8 @@ class Media(CustomIntrospectable):
                 return dbus.String(self.media_type)
             elif property_name == 'File':
                 return dbus.String(self.file_path)
+            elif property_name == 'Length':
+                return dbus.Double(self.length)
         else:
             raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',
                                                 f'No such property {property_name}')

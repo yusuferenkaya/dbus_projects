@@ -1,5 +1,6 @@
 import dbus.service
 import subprocess
+from overrides import override
 from media import Media
 
 class Audio(Media):
@@ -7,7 +8,7 @@ class Audio(Media):
         interfaces = ['com.kentkart.RemoteMediaPlayer.Media', 'com.kentkart.RemoteMediaPlayer.Media.Audio']
         super().__init__(bus, object_path, file_path, interfaces, 'Audio')
         self.sample_rate, self.channels = self.get_audio_properties(file_path)
-        self.interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Audio'  # Explicitly set interface name
+        self.interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Audio'
 
     def get_audio_properties(self, file_path):
         try:
@@ -17,14 +18,15 @@ class Audio(Media):
                 '-of', 'default=noprint_wrappers=1:nokey=1', file_path
             ]
             output = subprocess.check_output(command).decode().split('\n')
-            self.length = float(output[2].strip())  # Update length in Media class
+            self.length = float(output[2].strip())
             sample_rate = int(output[0].strip())
             channels = int(output[1].strip())
             return sample_rate, channels
         except Exception as e:
             print(f"Error extracting audio properties: {e}")
-            return 0, 0  # Return default values in case of error
+            return 0, 0
 
+    @override
     def GetDBusProperties(self, interface_name):
         if interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Audio':
             return [
@@ -35,6 +37,7 @@ class Audio(Media):
             return super().GetDBusProperties(interface_name)
         return []
 
+    @override
     @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
     def Get(self, interface_name, property_name):
         print(f"Get called for interface: {interface_name}, property: {property_name}")
@@ -43,7 +46,7 @@ class Audio(Media):
                 return dbus.Int32(self.sample_rate)
             elif property_name == 'Channels':
                 return dbus.Int32(self.channels)
-            elif property_name == 'Length':  # Ensure Length property is accessible if needed
+            elif property_name == 'Length':
                 return dbus.Double(self.length)
         elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
             return super().Get(interface_name, property_name)

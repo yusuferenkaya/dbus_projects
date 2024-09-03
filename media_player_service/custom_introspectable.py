@@ -1,5 +1,6 @@
 import dbus.service
 import xml.etree.ElementTree as ET
+from overrides import override
 
 class CustomIntrospectable(dbus.service.Object):
     def __init__(self, bus, object_path, interfaces=None):
@@ -8,6 +9,7 @@ class CustomIntrospectable(dbus.service.Object):
 
     @dbus.service.method(dbus.INTROSPECTABLE_IFACE, in_signature='', out_signature='s',
                          path_keyword='object_path', connection_keyword='connection')
+    @override
     def Introspect(self, object_path, connection):
         print(f"Introspect called for object_path: {object_path}")
         xml = super().Introspect(object_path, connection)
@@ -34,4 +36,9 @@ class CustomIntrospectable(dbus.service.Object):
             return xml
 
     def GetDBusProperties(self, interface_name):
+        # to be overridden in subclasses to provide properties
+        return []
+
+    def GetDBusSignals(self, interface_name):
+        # to be overridden in subclasses to provide signals
         return []

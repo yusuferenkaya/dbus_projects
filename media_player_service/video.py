@@ -3,6 +3,7 @@ import os
 import subprocess
 import ffmpeg
 from fractions import Fraction
+from overrides import override
 from media import Media
 
 class Video(Media):
@@ -10,14 +11,14 @@ class Video(Media):
         interfaces = ['com.kentkart.RemoteMediaPlayer.Media', 'com.kentkart.RemoteMediaPlayer.Media.Video']
         super().__init__(bus, object_path, file_path, interfaces, 'Video')
         self.dimensions, self.frame_rate = self.extract_video_properties()
-        self.interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Video'  # Explicitly set interface name
+        self.interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Video'
 
     def extract_video_properties(self):
         try:
             probe = ffmpeg.probe(self.file_path)
             video_info = next(stream for stream in probe['streams'] if stream['codec_type'] == 'video')
 
-            self.length = float(video_info.get('duration', 0))  # Update length in Media class
+            self.length = float(video_info.get('duration', 0))
             width = int(video_info.get('width', 0))
             height = int(video_info.get('height', 0))
             dimensions = (width, height)
@@ -32,6 +33,7 @@ class Video(Media):
             print(f"Error extracting video properties: {e}")
             return (0, 0), 0.0
 
+    @override
     def GetDBusProperties(self, interface_name):
         if interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Video':
             return [
@@ -42,6 +44,7 @@ class Video(Media):
             return super().GetDBusProperties(interface_name)
         return []
 
+    @override
     @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
     def Get(self, interface_name, property_name):
         print(f"Get called for interface: {interface_name}, property: {property_name}")
@@ -50,7 +53,7 @@ class Video(Media):
                 return dbus.Struct(self.dimensions, signature='ii')
             elif property_name == 'FrameRate':
                 return dbus.Double(self.frame_rate)
-            elif property_name == 'Length':  # Move Length property here
+            elif property_name == 'Length':
                 return dbus.Double(self.length)
         elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
             return super().Get(interface_name, property_name)
