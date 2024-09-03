@@ -26,9 +26,7 @@ class Video(Media):
         try:
             probe = ffmpeg.probe(self.file_path)
             video_info = next(stream for stream in probe['streams'] if stream['codec_type'] == 'video')
-
-            
-            # self.length = float(video_info.get('duration', 0))
+            self.length = float(video_info.get('duration', 0))
             width = int(video_info.get('width', 0))
             height = int(video_info.get('height', 0))
             dimensions = (width, height)
@@ -51,7 +49,7 @@ class Video(Media):
                 {'name': 'FrameRate', 'type': 'd', 'access': 'read'}
             ]
         elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Audio':
-            return super().GetDBusProperties(interface_name)  # Use from AudioProperties
+            return self._audio.get_audio_property_names()
         elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
             return super().GetDBusProperties(interface_name)
         return []
@@ -66,10 +64,9 @@ class Video(Media):
             elif property_name == 'FrameRate':
                 return dbus.Double(self.frame_rate)
         elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Audio':
-            if property_name == 'SampleRate':
-                return dbus.Int32(self._audio.sample_rate)
-            elif property_name == 'Channels':
-                return dbus.Int32(self._audio.channels)
+            ret = self._audio.get_audio_property_values(property_name)
+            if ret:
+                return ret
         elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
             return super().Get(interface_name, property_name)
         else:
