@@ -106,6 +106,15 @@ def main():
                         print("Length:", length)
                         print("Dimensions: ({} x {})".format(width, height))
                         print("Frame Rate:", frame_rate)
+                        
+                        # Also print audio properties if available
+                        try:
+                            sample_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'SampleRate')
+                            channels = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Channels')
+                            print("Sample Rate:", sample_rate)
+                            print("Channels:", channels)
+                        except dbus.exceptions.DBusException as e:
+                            print("No audio properties available for this video.")
 
             elif choice == '6':
                 media_list = properties_interface.Get('com.kentkart.RemoteMediaPlayer', 'AllMedia')

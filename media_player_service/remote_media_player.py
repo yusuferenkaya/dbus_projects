@@ -5,6 +5,8 @@ import os
 from media import Media
 from audio import Audio
 from video import Video
+from gi.repository import GLib  
+
 
 class RemoteMediaPlayer(CustomIntrospectable):
     def __init__(self, bus, object_path):
@@ -42,17 +44,21 @@ class RemoteMediaPlayer(CustomIntrospectable):
             self._source_directories.append(path)
             self._scan_directory(path)
 
-            self.PropertiesChanged(
-                'com.kentkart.RemoteMediaPlayer', 
-                {
-                    "AllMedia": dbus.Array(self.GetAllMedia(), signature='o'),
-                    "SourceDirectories": dbus.Array(self._source_directories, signature='s')
-                }, 
-                []
-            )
+            GLib.idle_add(self.emit_properties_changed)
             return True
         return False
 
+    def emit_properties_changed(self):
+        self.PropertiesChanged(
+            'com.kentkart.RemoteMediaPlayer', 
+            {
+                "AllMedia": dbus.Array(self.GetAllMedia(), signature='o'),
+                "SourceDirectories": dbus.Array(self._source_directories, signature='s')
+            }, 
+            []
+        )
+        return False  # Returning False to remove the idle function after execution
+        
     @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='b')
     def Scan(self):
         # Resetting all media and unpublishing objects

@@ -1,15 +1,19 @@
 import dbus.service
-import os
 import subprocess
 import ffmpeg
 from fractions import Fraction
 from overrides import override
 from media import Media
+from audio import Audio  
 
 class Video(Media):
     def __init__(self, bus, object_path, file_path):
-        interfaces = ['com.kentkart.RemoteMediaPlayer.Media', 'com.kentkart.RemoteMediaPlayer.Media.Video']
+        interfaces = ['com.kentkart.RemoteMediaPlayer.Media', 
+                      'com.kentkart.RemoteMediaPlayer.Media.Video', 
+                      'com.kentkart.RemoteMediaPlayer.Media.Audio']
         super().__init__(bus, object_path, file_path, interfaces, 'Video')
+        
+        self.audio_properties = self.extract_audio_properties(file_path)  
         self.dimensions, self.frame_rate = self.extract_video_properties()
         self.interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Video'
 
@@ -33,12 +37,38 @@ class Video(Media):
             print(f"Error extracting video properties: {e}")
             return (0, 0), 0.0
 
+    def extract_audio_properties(self, file_path):
+        try:
+            command = [
+                'ffprobe', '-v', 'error', '-select_streams', 'a:0', 
+                '-show_entries', 'stream=sample_rate,channels,duration', 
+                '-of', 'default=noprint_wrappers=1:nokey=1', file_path
+            ]
+            output = subprocess.check_output(command).decode().split('\n')
+            length = float(output[2].strip())
+            sample_rate = int(output[0].strip())
+            channels = int(output[1].strip())
+            return {
+                'length': length,
+                'sample_rate': sample_rate,
+                'channels': channels
+            }
+        except Exception as e:
+            print(f"Error extracting audio properties: {e}")
+            return {'length': 0, 'sample_rate': 0, 'channels': 0}
+
     @override
     def GetDBusProperties(self, interface_name):
         if interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Video':
             return [
                 {'name': 'Dimensions', 'type': '(ii)', 'access': 'read'},
                 {'name': 'FrameRate', 'type': 'd', 'access': 'read'}
+            ]
+        elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Audio':
+            return [
+                {'name': 'SampleRate', 'type': 'i', 'access': 'read'},
+                {'name': 'Channels', 'type': 'i', 'access': 'read'},
+                {'name': 'Length', 'type': 'd', 'access': 'read'}
             ]
         elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
             return super().GetDBusProperties(interface_name)
@@ -55,6 +85,13 @@ class Video(Media):
                 return dbus.Double(self.frame_rate)
             elif property_name == 'Length':
                 return dbus.Double(self.length)
+        elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Audio':
+            if property_name == 'SampleRate':
+                return dbus.Int32(self.audio_properties['sample_rate'])
+            elif property_name == 'Channels':
+                return dbus.Int32(self.audio_properties['channels'])
+            elif property_name == 'Length':
+                return dbus.Double(self.audio_properties['length'])
         elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
             return super().Get(interface_name, property_name)
         else:
