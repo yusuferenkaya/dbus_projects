@@ -42,13 +42,13 @@ class RemoteMediaPlayer(CustomIntrospectable):
     def AddSource(self, path):
         if os.path.isdir(path):
             self._source_directories.append(path)
-            self._scan_directory(path)
 
             GLib.idle_add(self.emit_properties_changed)
             return True
         return False
 
     def emit_properties_changed(self):
+        self._scan_directory(path)
         self.PropertiesChanged(
             'com.kentkart.RemoteMediaPlayer', 
             {

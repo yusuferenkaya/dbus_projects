@@ -89,21 +89,20 @@ def main():
                     
                     media_file = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'File')
                     print("File:", media_file)
+
+                    length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Length')
+                    print("Length:", length)
                     
                     if media_type == 'Audio':
                         sample_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'SampleRate')
-                        length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Length')
                         channels = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Channels')
                         print("Sample Rate:", sample_rate)
-                        print("Length:", length)
                         print("Channels:", channels)
                     
                     elif media_type == 'Video':
-                        length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Length')
                         dimensions = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Dimensions')
                         frame_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'FrameRate')
                         width, height = dimensions[0], dimensions[1]
-                        print("Length:", length)
                         print("Dimensions: ({} x {})".format(width, height))
                         print("Frame Rate:", frame_rate)
                         
