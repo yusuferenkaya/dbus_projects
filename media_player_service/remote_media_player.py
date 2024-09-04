@@ -8,6 +8,7 @@ from media import Media
 from audio import Audio
 from video import Video
 from gi.repository import GLib  
+from event_emitter import Events
 
 class RemoteMediaPlayer(CustomIntrospectable):
     def __init__(self, bus, object_path):
@@ -20,8 +21,8 @@ class RemoteMediaPlayer(CustomIntrospectable):
         self._object_id = 0
         self._playing_media = set()  
 
-        Media.event_emitter.on('media_play', self.on_media_play)
-        Media.event_emitter.on('media_stop', self.on_media_stop)
+        Events.instance().on('media_play', self.on_media_play)
+        Events.instance().on('media_stop', self.on_media_stop)
 
     @override
     def GetDBusProperties(self, interface_name):
