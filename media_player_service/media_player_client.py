@@ -125,13 +125,18 @@ def main():
                     media_choice = int(get_user_input("Select video media to extract audio: ")) - 1
                     media_path = media_list[media_choice]
                     media_object = bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
-                    media_interface = dbus.Interface(media_object, dbus_interface='com.kentkart.RemoteMediaPlayer.Media.Video')
-                    filename = get_user_input("Enter filename for extracted audio: ")
-                    if media_interface.ExtractAudio(filename):
-                        print("Audio extracted successfully.")
-                    else:
-                        print("Failed to extract audio.")
+                    media_interface = dbus.Interface(media_object, dbus_interface='org.freedesktop.DBus.Properties')
 
+                    media_type = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
+                    if media_type == 'Video':
+                        media_video_interface = dbus.Interface(media_object, dbus_interface='com.kentkart.RemoteMediaPlayer.Media.Video')
+                        filename = get_user_input("Enter filename for extracted audio: ")
+                        if media_video_interface.ExtractAudio(filename):
+                            print("Audio extracted successfully.")
+                        else:
+                            print("Failed to extract audio.")
+                    else:
+                        print("Selected media is not a video. Cannot extract audio.")
             elif choice == '7': 
                 if player_interface.ResetMedia():  
                     print("All media reset successfully.")

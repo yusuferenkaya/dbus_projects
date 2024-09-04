@@ -43,11 +43,11 @@ class RemoteMediaPlayer(CustomIntrospectable):
         if os.path.isdir(path):
             self._source_directories.append(path)
 
-            GLib.idle_add(self.emit_properties_changed)
+            GLib.idle_add(self.emit_properties_changed, path)
             return True
         return False
 
-    def emit_properties_changed(self):
+    def emit_properties_changed(self, path):
         self._scan_directory(path)
         self.PropertiesChanged(
             'com.kentkart.RemoteMediaPlayer', 
@@ -153,8 +153,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
 
     def generate_object_path(self):
         self._object_id += 1
-        return f"/com/kentkart/RemoteMediaPlayer/Media/{self._object_id}"  # Added '/' between 'Media' and the ID
-
+        return f"/com/kentkart/RemoteMediaPlayer/Media/{self._object_id}"  
     @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='as')
     def GetAllMedia(self):
         if not self._media_objects:

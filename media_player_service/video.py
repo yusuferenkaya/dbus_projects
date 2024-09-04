@@ -5,6 +5,7 @@ from fractions import Fraction
 from overrides import override
 from media import Media
 from audio import AudioProperties  
+import os
 
 class Video(Media):
     def __init__(self, bus, object_path, file_path):
@@ -16,6 +17,17 @@ class Video(Media):
         self._audio = self._AudioOfVideo(file_path) 
         self.dimensions, self.frame_rate = self.extract_video_properties()
         self.interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Video'
+
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer.Media.Video', in_signature='s', out_signature='b')
+    def ExtractAudio(self, filename):
+        output_path = os.path.join(os.path.dirname(self.file_path), f"{filename}.wav")
+        try:
+            subprocess.run(['ffmpeg', '-i', self.file_path, '-q:a', '0', '-map', 'a', output_path], check=True)
+            print(f"Extracted audio from {self.file_path} to {output_path}")
+            return True
+        except subprocess.CalledProcessError:
+            print(f"Failed to extract audio from {self.file_path}")
+            return False
 
     class _AudioOfVideo(AudioProperties):
         def __init__(self, file_path):
