@@ -10,11 +10,14 @@ def display_menu():
     print("5. View Media Properties")
     print("6. Extract Audio from Video")
     print("7. Reset Media")  
-    print("8. List Source Directories")  # New option to list source directories
-    print("9. Exit") 
+    print("8. List Source Directories")  
+    print("9. Stop Media")  
+    print("10. Exit") 
 
+    
 def get_user_input(prompt):
     return input(prompt).strip()
+
 
 def on_properties_changed(interface_name, changed, invalidated):
     print(f"Properties changed on interface {interface_name}: {changed}")
@@ -22,6 +25,11 @@ def on_properties_changed(interface_name, changed, invalidated):
         print("Updated AllMedia: ", changed['AllMedia'])
     if 'SourceDirectories' in changed:
         print("Updated SourceDirectories: ", changed['SourceDirectories'])
+    if 'PlayingMedia' in changed:
+        print("Updated PlayingMedia: ", changed['PlayingMedia'])
+
+def on_playing_media_changed(playing_media):
+    print(f"Currently playing media objects: {playing_media}")
 
 def main():
     DBusGMainLoop(set_as_default=True)
@@ -32,6 +40,7 @@ def main():
     properties_interface = dbus.Interface(player_object, dbus_interface='org.freedesktop.DBus.Properties')
 
     properties_interface.connect_to_signal('PropertiesChanged', on_properties_changed)
+    player_interface.connect_to_signal('PlayingMediaChanged', on_playing_media_changed)
 
     while True:
         display_menu()
@@ -130,8 +139,7 @@ def main():
                     media_type = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
                     if media_type == 'Video':
                         media_video_interface = dbus.Interface(media_object, dbus_interface='com.kentkart.RemoteMediaPlayer.Media.Video')
-                        filename = get_user_input("Enter filename for extracted audio: ")
-                        if media_video_interface.ExtractAudio(filename):
+                        if media_video_interface.ExtractAudio():
                             print("Audio extracted successfully.")
                         else:
                             print("Failed to extract audio.")
@@ -151,8 +159,23 @@ def main():
                     print("Source Directories:")
                     for idx, source_dir in enumerate(source_directories, start=1):
                         print(f"{idx}. {source_dir}")
+            elif choice == '9':
+                media_list = properties_interface.Get('com.kentkart.RemoteMediaPlayer', 'AllMedia')
+                if not media_list:
+                    print("No media available.")
+                else:
+                    for idx, media_path in enumerate(media_list, start=1):
+                        print(f"{idx}. {media_path}")
+                    media_choice = int(get_user_input("Select media to stop: ")) - 1
+                    media_path = media_list[media_choice]
+                    media_object = bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
+                    media_interface = dbus.Interface(media_object, dbus_interface='com.kentkart.RemoteMediaPlayer.Media')
+                    if media_interface.Stop():
+                        print("Media has been stopped.")
+                    else:
+                        print("Failed to stop media.")
 
-            elif choice == '9':  
+            elif choice == '10':  
                 print("Exiting...")
                 break
             else:

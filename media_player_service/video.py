@@ -18,9 +18,11 @@ class Video(Media):
         self.dimensions, self.frame_rate = self.extract_video_properties()
         self.interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Video'
 
-    @dbus.service.method('com.kentkart.RemoteMediaPlayer.Media.Video', in_signature='s', out_signature='b')
-    def ExtractAudio(self, filename):
-        output_path = os.path.join(os.path.dirname(self.file_path), f"{filename}.wav")
+    @dbus.service.method('com.kentkart.RemoteMediaPlayer.Media.Video', in_signature='', out_signature='b')
+    def ExtractAudio(self):
+        base_name = os.path.splitext(os.path.basename(self.file_path))[0]
+        output_path = os.path.join(os.path.dirname(self.file_path), f"{base_name}_audio.mp3")
+        
         try:
             subprocess.run(['ffmpeg', '-i', self.file_path, '-q:a', '0', '-map', 'a', output_path], check=True)
             print(f"Extracted audio from {self.file_path} to {output_path}")
@@ -28,7 +30,7 @@ class Video(Media):
         except subprocess.CalledProcessError:
             print(f"Failed to extract audio from {self.file_path}")
             return False
-
+            
     class _AudioOfVideo(AudioProperties):
         def __init__(self, file_path):
             super().__init__()  
