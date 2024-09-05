@@ -31,7 +31,6 @@ class AudioProperties:
         return [
             {'name': 'SampleRate', 'type': 'i', 'access': 'read'},
             {'name': 'Channels', 'type': 'i', 'access': 'read'},
-            {'name': 'Length', 'type': 'd', 'access': 'read'}
         ]
 
     def get_audio_property_values(self, property_name):

@@ -73,7 +73,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
     def emit_properties_changed(self, path):
         self._scan_directory(path)
         self.PropertiesChanged(
-            'com.kentkart.RemoteMediaPlayer', 
+            REMOTE_MEDIA_PLAYER_INTERFACE, 
             {
                 "AllMedia": dbus.Array(self.GetAllMedia(), signature='o'),
                 "SourceDirectories": dbus.Array(self._source_directories, signature='s'),
@@ -96,7 +96,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
             self._scan_directory(directory)
 
         self.PropertiesChanged(
-            'com.kentkart.RemoteMediaPlayer', 
+            REMOTE_MEDIA_PLAYER_INTERFACE, 
             {
                 "AllMedia": dbus.Array(self.GetAllMedia(), signature='o'),
                 "SourceDirectories": dbus.Array(self._source_directories, signature='s'),
@@ -132,7 +132,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
             self._media_files.clear()
             
             self.PropertiesChanged(
-                'com.kentkart.RemoteMediaPlayer', 
+                REMOTE_MEDIA_PLAYER_INTERFACE, 
                 {
                     "AllMedia": dbus.Array([], signature='o'), 
                     "SourceDirectories": dbus.Array([], signature='s'),
@@ -159,7 +159,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
             elif property_name == 'SourceDirectories':
                 return dbus.Array(self._source_directories, signature='s')  
             elif property_name == 'Version':
-                return dbus.String("1.0")
+                return dbus.String(VERSION)
             elif property_name == 'PlayingMedia':
                 return dbus.Array(list(self._playing_media), signature='o')
         raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',
@@ -171,7 +171,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
             return {
                 'AllMedia': dbus.Array(self.GetAllMedia(), signature='o'),
                 'SourceDirectories': dbus.Array(self._source_directories, signature='s'),
-                'Version': dbus.String("1.0"),
+                'Version': dbus.String(VERSION),
                 'PlayingMedia': dbus.Array(list(self._playing_media), signature='o')
             }
         else:
