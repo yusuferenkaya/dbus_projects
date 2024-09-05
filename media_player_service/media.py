@@ -4,6 +4,7 @@ import threading
 from overrides import override
 from custom_introspectable import CustomIntrospectable
 from event_emitter import Events 
+from interface_names import MEDIA_INTERFACE
 
 class Media(CustomIntrospectable):
     def __init__(self, bus, object_path, file_path, interfaces, media_type):
@@ -16,7 +17,7 @@ class Media(CustomIntrospectable):
 
     @override
     def GetDBusProperties(self, interface_name):
-        if interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
+        if interface_name == MEDIA_INTERFACE:
             return [
                 {'name': 'Type', 'type': 's', 'access': 'read'},
                 {'name': 'File', 'type': 's', 'access': 'read'},
@@ -24,7 +25,7 @@ class Media(CustomIntrospectable):
             ]
         return []
 
-    @dbus.service.method('com.kentkart.RemoteMediaPlayer.Media', in_signature='', out_signature='b')
+    @dbus.service.method(MEDIA_INTERFACE, in_signature='', out_signature='b')
     def Play(self):
         print(f"Playing {self.file_path}")
         try:
@@ -52,7 +53,7 @@ class Media(CustomIntrospectable):
         finally:
             self.stopped_manually = False
 
-    @dbus.service.method('com.kentkart.RemoteMediaPlayer.Media', in_signature='', out_signature='b')
+    @dbus.service.method(MEDIA_INTERFACE, in_signature='', out_signature='b')
     def Stop(self):
         print(f"Stopping media: {self.file_path}")
         try:
@@ -77,7 +78,7 @@ class Media(CustomIntrospectable):
     @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
     def Get(self, interface_name, property_name):
         print(f"Get called for interface: {interface_name}, property: {property_name}")
-        if interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
+        if interface_name == MEDIA_INTERFACE:
             if property_name == 'Type':
                 return dbus.String(self.media_type)
             elif property_name == 'File':

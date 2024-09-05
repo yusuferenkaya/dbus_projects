@@ -9,10 +9,12 @@ from audio import Audio
 from video import Video
 from gi.repository import GLib  
 from event_emitter import Events
+from interface_names import REMOTE_MEDIA_PLAYER_INTERFACE, PROPERTIES_INTERFACE
+from app_version import VERSION
 
 class RemoteMediaPlayer(CustomIntrospectable):
     def __init__(self, bus, object_path):
-        interfaces = ['com.kentkart.RemoteMediaPlayer']
+        interfaces = [REMOTE_MEDIA_PLAYER_INTERFACE]
         super().__init__(bus, object_path, interfaces)
         self.bus = bus
         self._source_directories = []
@@ -27,7 +29,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
     @override
     def GetDBusProperties(self, interface_name):
         """Override to provide D-Bus properties for introspection."""
-        if interface_name == 'com.kentkart.RemoteMediaPlayer':
+        if interface_name == REMOTE_MEDIA_PLAYER_INTERFACE:
             return [
                 {'name': 'Version', 'type': 's', 'access': 'read'},
                 {'name': 'SourceDirectories', 'type': 'as', 'access': 'read'},
@@ -39,7 +41,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
     @override
     def GetDBusSignals(self, interface_name):
         """Override to provide D-Bus signals for introspection."""
-        if interface_name == 'com.kentkart.RemoteMediaPlayer':
+        if interface_name == REMOTE_MEDIA_PLAYER_INTERFACE:
             return [
                 {'name': 'PropertiesChanged'},
                 {'name': 'PlayingMediaChanged'}
@@ -56,11 +58,11 @@ class RemoteMediaPlayer(CustomIntrospectable):
         self._playing_media.discard(media_object_path)
         self.PlayingMediaChanged(list(self._playing_media))
 
-    @dbus.service.signal('com.kentkart.RemoteMediaPlayer', signature='ao')
+    @dbus.service.signal(REMOTE_MEDIA_PLAYER_INTERFACE, signature='ao')
     def PlayingMediaChanged(self, playing_media):
         print(f"Playing media changed: {playing_media}")
 
-    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='s', out_signature='b')
+    @dbus.service.method(REMOTE_MEDIA_PLAYER_INTERFACE, in_signature='s', out_signature='b')
     def AddSource(self, path):
         if os.path.isdir(path):
             self._source_directories.append(path)
@@ -81,7 +83,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
         )
         return False  
         
-    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='b')
+    @dbus.service.method(REMOTE_MEDIA_PLAYER_INTERFACE, in_signature='', out_signature='b')
     def Scan(self):
         # Resetting all media and unpublishing objects
         for object_path, media_object in list(self._media_objects.items()):
@@ -121,7 +123,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
                 self._media_objects[object_path] = media
                 self._media_files.add(media_path)  
 
-    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='b')
+    @dbus.service.method(REMOTE_MEDIA_PLAYER_INTERFACE, in_signature='', out_signature='b')
     def ResetMedia(self):
         try:
             for object_path, media_object in list(self._media_objects.items()):
@@ -151,7 +153,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
     
     @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
     def Get(self, interface_name, property_name):
-        if interface_name == 'com.kentkart.RemoteMediaPlayer':
+        if interface_name == REMOTE_MEDIA_PLAYER_INTERFACE:
             if property_name == 'AllMedia':
                 return dbus.Array(self.GetAllMedia(), signature='o') 
             elif property_name == 'SourceDirectories':
@@ -165,7 +167,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
 
     @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='s', out_signature='a{sv}')
     def GetAll(self, interface_name):
-        if interface_name == 'com.kentkart.RemoteMediaPlayer':
+        if interface_name == REMOTE_MEDIA_PLAYER_INTERFACE:
             return {
                 'AllMedia': dbus.Array(self.GetAllMedia(), signature='o'),
                 'SourceDirectories': dbus.Array(self._source_directories, signature='s'),
@@ -182,7 +184,7 @@ class RemoteMediaPlayer(CustomIntrospectable):
         self._object_id += 1
         return f"/com/kentkart/RemoteMediaPlayer/Media/{self._object_id}"  
     
-    @dbus.service.method('com.kentkart.RemoteMediaPlayer', in_signature='', out_signature='as')
+    @dbus.service.method(REMOTE_MEDIA_PLAYER_INTERFACE, in_signature='', out_signature='as')
     def GetAllMedia(self):
         if not self._media_objects:
             return dbus.Array([], signature='o') 

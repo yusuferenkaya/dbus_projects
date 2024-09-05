@@ -6,19 +6,19 @@ from overrides import override
 from media import Media
 from audio import AudioProperties  
 import os
+from interface_names import MEDIA_INTERFACE, AUDIO_INTERFACE, VIDEO_INTERFACE
+from app_version import VERSION
 
 class Video(Media):
     def __init__(self, bus, object_path, file_path):
-        interfaces = ['com.kentkart.RemoteMediaPlayer.Media', 
-                      'com.kentkart.RemoteMediaPlayer.Media.Video', 
-                      'com.kentkart.RemoteMediaPlayer.Media.Audio']
+        interfaces = [MEDIA_INTERFACE, VIDEO_INTERFACE, AUDIO_INTERFACE]
         super().__init__(bus, object_path, file_path, interfaces, 'Video')
         
         self._audio = self._AudioOfVideo(file_path) 
         self.dimensions, self.frame_rate = self.extract_video_properties()
-        self.interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Video'
+        self.interface_name = VIDEO_INTERFACE
 
-    @dbus.service.method('com.kentkart.RemoteMediaPlayer.Media.Video', in_signature='', out_signature='b')
+    @dbus.service.method(VIDEO_INTERFACE, in_signature='', out_signature='b')
     def ExtractAudio(self):
         base_name = os.path.splitext(os.path.basename(self.file_path))[0]
         output_path = os.path.join(os.path.dirname(self.file_path), f"{base_name}_audio.mp3")
@@ -57,14 +57,14 @@ class Video(Media):
 
     @override
     def GetDBusProperties(self, interface_name):
-        if interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Video':
+        if interface_name == VIDEO_INTERFACE:
             return [
                 {'name': 'Dimensions', 'type': '(ii)', 'access': 'read'},
                 {'name': 'FrameRate', 'type': 'd', 'access': 'read'}
             ]
-        elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Audio':
+        elif interface_name == AUDIO_INTERFACE:
             return self._audio.get_audio_property_names()
-        elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
+        elif interface_name == MEDIA_INTERFACE:
             return super().GetDBusProperties(interface_name)
         return []
 
@@ -72,16 +72,16 @@ class Video(Media):
     @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
     def Get(self, interface_name, property_name):
         print(f"Get called for interface: {interface_name}, property: {property_name}")
-        if interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Video':
+        if interface_name == VIDEO_INTERFACE:
             if property_name == 'Dimensions':
                 return dbus.Struct(self.dimensions, signature='ii')
             elif property_name == 'FrameRate':
                 return dbus.Double(self.frame_rate)
-        elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Audio':
+        elif interface_name == AUDIO_INTERFACE:
             ret = self._audio.get_audio_property_values(property_name)
             if ret:
                 return ret
-        elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
+        elif interface_name == MEDIA_INTERFACE:
             return super().Get(interface_name, property_name)
         else:
             raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',

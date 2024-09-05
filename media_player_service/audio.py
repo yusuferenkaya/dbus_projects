@@ -2,6 +2,8 @@ import dbus.service
 import subprocess
 from overrides import override
 from media import Media
+from interface_names import MEDIA_INTERFACE, AUDIO_INTERFACE
+from app_version import VERSION
 
 class AudioProperties:
     def __init__(self):
@@ -42,18 +44,18 @@ class AudioProperties:
 
 class Audio(Media, AudioProperties):
     def __init__(self, bus, object_path, file_path):
-        interfaces = ['com.kentkart.RemoteMediaPlayer.Media', 'com.kentkart.RemoteMediaPlayer.Media.Audio']
+        interfaces = [MEDIA_INTERFACE, AUDIO_INTERFACE]
         super().__init__(bus, object_path, file_path, interfaces, 'Audio')
         self.get_audio_properties(file_path)
         self.length = self.audio_length
-        self.interface_name = 'com.kentkart.RemoteMediaPlayer.Media.Audio'
+        self.interface_name = AUDIO_INTERFACE
 
 
     @override
     def GetDBusProperties(self, interface_name):
-        if interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Audio':
+        if interface_name == AUDIO_INTERFACE:
             return self.get_audio_property_names()
-        elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
+        elif interface_name == MEDIA_INTERFACE:
             return super().GetDBusProperties(interface_name)
         
         return []
@@ -62,12 +64,12 @@ class Audio(Media, AudioProperties):
     @dbus.service.method(dbus.PROPERTIES_IFACE, in_signature='ss', out_signature='v')
     def Get(self, interface_name, property_name):
         print(f"Get called for interface: {interface_name}, property: {property_name}")
-        if interface_name == 'com.kentkart.RemoteMediaPlayer.Media.Audio':
+        if interface_name == AUDIO_INTERFACE:
             if property_name == 'SampleRate':
                 return dbus.Int32(self.sample_rate)
             elif property_name == 'Channels':
                 return dbus.Int32(self.channels)
-        elif interface_name == 'com.kentkart.RemoteMediaPlayer.Media':
+        elif interface_name == MEDIA_INTERFACE:
             return super().Get(interface_name, property_name)
         else:
             raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',
