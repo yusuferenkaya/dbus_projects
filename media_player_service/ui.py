@@ -248,12 +248,7 @@ class MediaPlayerUI(ctk.CTk):
             messagebox.showerror("Error", f"DBus error when extracting audio: {e}")
 
         return False 
-    def update_media_list(self, media_list):
-        for item in self.tree_view.get_children():
-            self.tree_view.delete(item)
-
-        for media_path in media_list:
-            self.tree_view.insert("", "end", text=media_path, values=("Type", "File", "Length"))
+    
 
     def scan_media(self):
         try:
