@@ -22,6 +22,10 @@ class Video(Media):
     def ExtractAudio(self):
         base_name = os.path.splitext(os.path.basename(self.file_path))[0]
         output_path = os.path.join(os.path.dirname(self.file_path), f"{base_name}_audio.mp3")
+
+        if os.path.exists(output_path):
+            os.remove(output_path)
+            print(f"Existing audio file {output_path} has been deleted.")
         
         try:
             subprocess.run(['ffmpeg', '-i', self.file_path, '-q:a', '0', '-map', 'a', output_path], check=True)
