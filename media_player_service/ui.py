@@ -27,6 +27,10 @@ class MediaPlayerUI(ctk.CTk):
         self.grid_columnconfigure(2, weight=1)
         self.grid_rowconfigure(6, weight=1)  
 
+        self.populate_all_media()
+
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+
     def create_widgets(self):
         self.source_button = ctk.CTkButton(self, text="Add Source Directory", command=self.add_source_directory)
         self.source_button.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
@@ -91,9 +95,9 @@ class MediaPlayerUI(ctk.CTk):
         for media_path in media_list:
             media_object = self.bus.get("com.kentkart.RemoteMediaPlayer", media_path)
             
-            media_type = media_object.Get("com.kentkart.RemoteMediaPlayer.Media", "Type")
-            media_file = media_object.Get("com.kentkart.RemoteMediaPlayer.Media", "File")
-            media_length = media_object.Get("com.kentkart.RemoteMediaPlayer.Media", "Length")
+            media_type = media_object.Type
+            media_file = media_object.File
+            media_length = media_object.Length
 
             self.tree_view.insert("", "end", text=media_path, values=(media_type, media_file, media_length))
 
@@ -113,6 +117,18 @@ class MediaPlayerUI(ctk.CTk):
             self.playing_media_label.grid_remove()
             self.playing_media_tree_view.grid_remove()
 
+    def populate_all_media(self):
+        try:
+            service = bus.get("com.kentkart.RemoteMediaPlayer")
+            all_media = service.AllMedia  
+            
+            if all_media:
+                self.update_tree_view(all_media)
+            else:
+                print("No media found in AllMedia.")
+        except Exception as e:
+            print(f"Error populating AllMedia list: {e}")
+
     def update_playing_media_list(self, playing_media_list):
         for item in self.tree_view.get_children():
             media_path = self.tree_view.item(item, "text")
@@ -128,9 +144,9 @@ class MediaPlayerUI(ctk.CTk):
         if selected_item:
             media_path = self.tree_view.item(selected_item, "text")
             media_object = bus.get("com.kentkart.RemoteMediaPlayer", media_path)
-            media_interface = media_object["com.kentkart.RemoteMediaPlayer.Media"]
+            
             try:
-                if media_interface.Play():
+                if media_object.Play():
                     print("Media is playing...")
                 else:
                     print("Failed to play media.")
@@ -148,20 +164,20 @@ class MediaPlayerUI(ctk.CTk):
         try:
             media_object = bus.get("com.kentkart.RemoteMediaPlayer", media_path)
 
-            media_type = media_object.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
-            media_file = media_object.Get('com.kentkart.RemoteMediaPlayer.Media', 'File')
-            media_length = media_object.Get('com.kentkart.RemoteMediaPlayer.Media', 'Length')
+            media_type = media_object.Type
+            media_file = media_object.File
+            media_length = media_object.Length
 
             properties_text = f"Type: {media_type}\nFile: {media_file}\nLength: {media_length}"
 
             if media_type == 'Audio':
-                sample_rate = media_object.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'SampleRate')
-                channels = media_object.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Channels')
+                sample_rate = media_object.SampleRate
+                channels = media_object.Channels
                 properties_text += f"\nSample Rate: {sample_rate}\nChannels: {channels}"
 
             elif media_type == 'Video':
-                dimensions = media_object.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Dimensions')
-                frame_rate = media_object.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'FrameRate')
+                dimensions = media_object.Dimensions
+                frame_rate = media_object.FrameRate
                 width, height = dimensions
                 properties_text += f"\nDimensions: {width}x{height}\nFrame Rate: {frame_rate}"
 
@@ -172,18 +188,26 @@ class MediaPlayerUI(ctk.CTk):
 
 
     def stop_media(self):
-        selected_item = self.tree_view.focus()
-        if selected_item:
-            media_path = self.tree_view.item(selected_item, "text")
-            media_object = bus.get("com.kentkart.RemoteMediaPlayer", media_path)
-            media_interface = media_object["com.kentkart.RemoteMediaPlayer.Media"]
-            try:
-                if media_interface.Stop():
-                    print("Media stopped.")
-                else:
-                    print("Failed to stop media.")
-            except Exception as e:
-                print(f"Error stopping media: {e}")
+        selected_item_playing = self.playing_media_tree_view.focus()
+        if selected_item_playing:
+            media_path = self.playing_media_tree_view.item(selected_item_playing, "values")[0] 
+        else:
+           
+            selected_item_all = self.tree_view.focus()
+            if selected_item_all:
+                media_path = self.tree_view.item(selected_item_all, "text")
+            else:
+                messagebox.showwarning("Warning", "Please select a media item to stop.")
+                return
+
+        media_object = bus.get("com.kentkart.RemoteMediaPlayer", media_path)
+        try:
+            if media_object.Stop():
+                print(f"Media {media_path} stopped.")
+            else:
+                print(f"Failed to stop media: {media_path}")
+        except Exception as e:
+            print(f"Error stopping media: {e}")
 
     def add_source_directory(self):
         directory = filedialog.askdirectory()
@@ -223,7 +247,7 @@ class MediaPlayerUI(ctk.CTk):
         try:
             service = bus.get("com.kentkart.RemoteMediaPlayer", media_path)
 
-            media_type = service.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
+            media_type = service.Type
             if media_type == 'Video':
                 if service.ExtractAudio():
                     print("Audio extracted successfully.")
@@ -255,6 +279,15 @@ class MediaPlayerUI(ctk.CTk):
         except Exception as e:
             print(f"Error scanning media: {e}")
             messagebox.showerror("Error", f"Error scanning media: {e}")
+
+    def on_close(self):
+        print("Closing application...")
+        
+        if loop.is_running():
+            loop.quit()
+
+        self.destroy()
+        print("Application closed.")
 
 if __name__ == "__main__":
     threading.Thread(target=loop.run).start()
