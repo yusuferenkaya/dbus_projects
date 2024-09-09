@@ -8,6 +8,8 @@ from tkinter import filedialog
 from tkinter import messagebox
 import dbus
 from dbus.mainloop.glib import DBusGMainLoop
+
+
 bus = SessionBus()
 loop = GLib.MainLoop()
 
@@ -17,8 +19,7 @@ class MediaPlayerUI(ctk.CTk):
 
         self.title("Remote Media Player")
         self.geometry("600x400")
-        DBusGMainLoop(set_as_default=True)
-        self.bus = dbus.SessionBus()
+        self.bus = bus
         self.create_widgets()
         self.connect_signals()
         self.grid_columnconfigure(0, weight=1)
@@ -73,12 +74,10 @@ class MediaPlayerUI(ctk.CTk):
         
 
     def connect_signals(self):
-        player_object = self.bus.get_object("com.kentkart.RemoteMediaPlayer", "/com/kentkart/RemoteMediaPlayer")
-        player_interface = dbus.Interface(player_object, dbus_interface="com.kentkart.RemoteMediaPlayer")
-        properties_interface = dbus.Interface(player_object, dbus_interface="org.freedesktop.DBus.Properties")
-
-        properties_interface.connect_to_signal('PropertiesChanged', self.on_properties_changed)
-        player_interface.connect_to_signal('PlayingMediaChanged', self.on_playing_media_changed)
+        player_object = bus.get("com.kentkart.RemoteMediaPlayer")
+        
+        player_object.onPropertiesChanged = self.on_properties_changed
+        player_object.onPlayingMediaChanged = self.on_playing_media_changed
 
     def on_properties_changed(self, interface_name, changed, invalidated):
         if 'AllMedia' in changed:
@@ -90,12 +89,11 @@ class MediaPlayerUI(ctk.CTk):
             self.tree_view.delete(item)
 
         for media_path in media_list:
-            media_object = self.bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
-            media_interface = dbus.Interface(media_object, dbus_interface='org.freedesktop.DBus.Properties')
-
-            media_type = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
-            media_file = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'File')
-            media_length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Length')
+            media_object = self.bus.get("com.kentkart.RemoteMediaPlayer", media_path)
+            
+            media_type = media_object.Get("com.kentkart.RemoteMediaPlayer.Media", "Type")
+            media_file = media_object.Get("com.kentkart.RemoteMediaPlayer.Media", "File")
+            media_length = media_object.Get("com.kentkart.RemoteMediaPlayer.Media", "Length")
 
             self.tree_view.insert("", "end", text=media_path, values=(media_type, media_file, media_length))
 
@@ -138,6 +136,7 @@ class MediaPlayerUI(ctk.CTk):
                     print("Failed to play media.")
             except Exception as e:
                 print(f"Error playing media: {e}")
+
     def view_media_properties(self):
         selected_item = self.tree_view.selection()
         if not selected_item:
@@ -147,29 +146,28 @@ class MediaPlayerUI(ctk.CTk):
         media_path = self.tree_view.item(selected_item)["text"]
 
         try:
-            media_object = self.bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
-            media_interface = dbus.Interface(media_object, dbus_interface='org.freedesktop.DBus.Properties')
+            media_object = bus.get("com.kentkart.RemoteMediaPlayer", media_path)
 
-            media_type = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
-            media_file = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'File')
-            media_length = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Length')
+            media_type = media_object.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
+            media_file = media_object.Get('com.kentkart.RemoteMediaPlayer.Media', 'File')
+            media_length = media_object.Get('com.kentkart.RemoteMediaPlayer.Media', 'Length')
 
             properties_text = f"Type: {media_type}\nFile: {media_file}\nLength: {media_length}"
 
             if media_type == 'Audio':
-                sample_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'SampleRate')
-                channels = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Channels')
+                sample_rate = media_object.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'SampleRate')
+                channels = media_object.Get('com.kentkart.RemoteMediaPlayer.Media.Audio', 'Channels')
                 properties_text += f"\nSample Rate: {sample_rate}\nChannels: {channels}"
 
             elif media_type == 'Video':
-                dimensions = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Dimensions')
-                frame_rate = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'FrameRate')
-                width, height = dimensions[0], dimensions[1]
+                dimensions = media_object.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'Dimensions')
+                frame_rate = media_object.Get('com.kentkart.RemoteMediaPlayer.Media.Video', 'FrameRate')
+                width, height = dimensions
                 properties_text += f"\nDimensions: {width}x{height}\nFrame Rate: {frame_rate}"
 
             messagebox.showinfo("Media Properties", properties_text)
 
-        except dbus.DBusException as e:
+        except Exception as e:
             messagebox.showerror("Error", f"Failed to retrieve media properties: {e}")
 
 
@@ -190,10 +188,9 @@ class MediaPlayerUI(ctk.CTk):
     def add_source_directory(self):
         directory = filedialog.askdirectory()
         if directory:
-            player_object = bus.get("com.kentkart.RemoteMediaPlayer", "/com/kentkart/RemoteMediaPlayer")
-            player_interface = player_object["com.kentkart.RemoteMediaPlayer"]
             try:
-                if player_interface.AddSource(directory):
+                service = bus.get("com.kentkart.RemoteMediaPlayer")
+                if service.AddSource(directory):
                     print("Source directory added successfully.")
                 else:
                     print("Failed to add source directory.")
@@ -202,10 +199,8 @@ class MediaPlayerUI(ctk.CTk):
 
     def list_source_directories(self):
         try:
-            player_object = self.bus.get_object("com.kentkart.RemoteMediaPlayer", "/com/kentkart/RemoteMediaPlayer")
-            properties_interface = dbus.Interface(player_object, dbus_interface="org.freedesktop.DBus.Properties")
-
-            source_directories = properties_interface.Get('com.kentkart.RemoteMediaPlayer', 'SourceDirectories')
+            service = bus.get("com.kentkart.RemoteMediaPlayer")
+            source_directories = service.SourceDirectories
 
             unique_directories = list(set(source_directories))
 
@@ -213,7 +208,7 @@ class MediaPlayerUI(ctk.CTk):
             for directory in unique_directories:
                 self.source_directories_listbox.insert(tk.END, directory)
 
-        except dbus.DBusException as e:
+        except Exception as e:
             print(f"Error listing source directories: {e}")
             messagebox.showerror("Error", f"Error listing source directories: {e}")
 
@@ -226,14 +221,11 @@ class MediaPlayerUI(ctk.CTk):
 
     def _extract_audio_async(self, media_path):
         try:
-            media_object = self.bus.get_object('com.kentkart.RemoteMediaPlayer', media_path)
-            
-            media_interface = dbus.Interface(media_object, dbus_interface='org.freedesktop.DBus.Properties')
-            
-            media_type = media_interface.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
+            service = bus.get("com.kentkart.RemoteMediaPlayer", media_path)
+
+            media_type = service.Get('com.kentkart.RemoteMediaPlayer.Media', 'Type')
             if media_type == 'Video':
-                media_video_interface = dbus.Interface(media_object, dbus_interface='com.kentkart.RemoteMediaPlayer.Media.Video')
-                if media_video_interface.ExtractAudio():
+                if service.ExtractAudio():
                     print("Audio extracted successfully.")
                     messagebox.showinfo("Audio Extraction", "Audio extracted successfully.")
                 else:
@@ -242,23 +234,25 @@ class MediaPlayerUI(ctk.CTk):
             else:
                 print("Selected media is not a video. Cannot extract audio.")
                 messagebox.showwarning("Audio Extraction", "Selected media is not a video. Cannot extract audio.")
+        except Exception as e:
+            print(f"Error extracting audio: {e}")
+            messagebox.showerror("Error", f"Error extracting audio: {e}")
 
-        except dbus.DBusException as e:
-            print(f"DBus error when extracting audio: {e}")
-            messagebox.showerror("Error", f"DBus error when extracting audio: {e}")
+    def update_media_list(self, media_list):
+        for item in self.tree_view.get_children():
+            self.tree_view.delete(item)
 
-        return False 
-    
+        for media_path in media_list:
+            self.tree_view.insert("", "end", text=media_path, values=("Type", "File", "Length"))
 
     def scan_media(self):
         try:
-            player_object = self.bus.get_object("com.kentkart.RemoteMediaPlayer", "/com/kentkart/RemoteMediaPlayer")
-            player_interface = dbus.Interface(player_object, dbus_interface="com.kentkart.RemoteMediaPlayer")
-            if player_interface.Scan():
+            service = bus.get("com.kentkart.RemoteMediaPlayer")
+            if service.Scan():
                 print("Media scan initiated.")
             else:
                 print("Failed to scan media.")
-        except dbus.DBusException as e:
+        except Exception as e:
             print(f"Error scanning media: {e}")
             messagebox.showerror("Error", f"Error scanning media: {e}")
 
