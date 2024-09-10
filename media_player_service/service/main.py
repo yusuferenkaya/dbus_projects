@@ -4,7 +4,8 @@ import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
-from remote_media_player import RemoteMediaPlayer
+from service.remote_media_player import RemoteMediaPlayer 
+
 
 def main():
     DBusGMainLoop(set_as_default=True)

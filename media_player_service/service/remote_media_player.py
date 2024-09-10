@@ -1,16 +1,16 @@
 # remote_media_player.py
 
 import dbus.service
-from custom_introspectable import CustomIntrospectable
 from overrides import override  
 import os
-from media import Media
-from audio import Audio
-from video import Video
 from gi.repository import GLib  
-from event_emitter import Events
-from interface_names import REMOTE_MEDIA_PLAYER_INTERFACE, PROPERTIES_INTERFACE
 from app_version import VERSION
+from common.custom_introspectable import CustomIntrospectable
+from common.event_emitter import Events
+from common.interface_names import REMOTE_MEDIA_PLAYER_INTERFACE
+from media.media import Media
+from media.audio import Audio
+from media.video import Video
 
 class RemoteMediaPlayer(CustomIntrospectable):
     def __init__(self, bus, object_path):

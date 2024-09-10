@@ -88,18 +88,6 @@ class MediaPlayerUI(ctk.CTk):
             media_list = changed['AllMedia']
             self.update_tree_view(media_list)
 
-    def update_tree_view(self, media_list):
-        for item in self.tree_view.get_children():
-            self.tree_view.delete(item)
-
-        for media_path in media_list:
-            media_object = self.bus.get("com.kentkart.RemoteMediaPlayer", media_path)
-            
-            media_type = media_object.Type
-            media_file = media_object.File
-            media_length = media_object.Length
-
-            self.tree_view.insert("", "end", text=media_path, values=(media_type, media_file, media_length))
 
     def on_playing_media_changed(self, playing_media):
         print(f"Currently playing media objects: {playing_media}")
@@ -268,6 +256,21 @@ class MediaPlayerUI(ctk.CTk):
 
         for media_path in media_list:
             self.tree_view.insert("", "end", text=media_path, values=("Type", "File", "Length"))
+
+    def update_tree_view(self, media_list):
+        for item in self.tree_view.get_children():
+            self.tree_view.delete(item)
+
+        for media_path in media_list:
+            media_object = self.bus.get("com.kentkart.RemoteMediaPlayer", media_path)
+            
+            media_type = media_object.Type
+            media_file = media_object.File
+            media_length = media_object.Length
+            media_playing = media_object.Playing  
+
+            status = "Playing" if media_playing else "Stopped"
+            self.tree_view.insert("", "end", text=media_path, values=(media_type, media_file, media_length, status))
 
     def scan_media(self):
         try:

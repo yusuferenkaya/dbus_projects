@@ -2,9 +2,9 @@ import dbus.service
 import subprocess
 import threading
 from overrides import override
-from custom_introspectable import CustomIntrospectable
-from event_emitter import Events 
-from interface_names import MEDIA_INTERFACE
+from common.custom_introspectable import CustomIntrospectable
+from common.event_emitter import Events
+from common.interface_names import MEDIA_INTERFACE
 
 class Media(CustomIntrospectable):
     def __init__(self, bus, object_path, file_path, interfaces, media_type):
@@ -14,6 +14,7 @@ class Media(CustomIntrospectable):
         self.length = 0
         self._playback_process = None
         self.stopped_manually = False
+        self.playing = False 
 
     @override
     def GetDBusProperties(self, interface_name):
@@ -21,18 +22,21 @@ class Media(CustomIntrospectable):
             return [
                 {'name': 'Type', 'type': 's', 'access': 'read'},
                 {'name': 'File', 'type': 's', 'access': 'read'},
-                {'name': 'Length', 'type': 'd', 'access': 'read'}
+                {'name': 'Length', 'type': 'd', 'access': 'read'},
+                {'name': 'Playing', 'type': 'b', 'access': 'read'}  
             ]
         return []
 
     @dbus.service.method(MEDIA_INTERFACE, in_signature='', out_signature='b')
     def Play(self):
+        if self._playback_process is not None and self._playback_process.poll() is None:
+            print(f"{self.file_path} is already playing.")
+            return False  
+
         print(f"Playing {self.file_path}")
         try:
             threading.Thread(target=self._play_media).start()
-
             Events.instance().emit('media_play', self._object_path)
-
             return True
         except Exception as e:
             print(f"Failed to initiate playback: {e}")
@@ -43,12 +47,14 @@ class Media(CustomIntrospectable):
             self._playback_process = subprocess.Popen(['ffplay', '-autoexit', '-nodisp', self.file_path])
             self._playback_process.wait()
             print(f"Finished playing {self.file_path}")
-
+            
             if self._playback_process.poll() is not None and not self.stopped_manually:
+                self.playing = False  
                 Events.instance().emit('media_stop', self._object_path)
 
         except subprocess.CalledProcessError:
             print(f"Error during playback of {self.file_path}")
+            self.playing = False  
             Events.instance().emit('media_stop', self._object_path)
         finally:
             self.stopped_manually = False
@@ -62,7 +68,7 @@ class Media(CustomIntrospectable):
                 self._playback_process.terminate()
                 self._playback_process.wait(timeout=5)
                 self._playback_process = None
-
+                self.playing = False
                 Events.instance().emit('media_stop', self._object_path)
 
                 return True
@@ -85,6 +91,8 @@ class Media(CustomIntrospectable):
                 return dbus.String(self.file_path)
             elif property_name == 'Length':
                 return dbus.Double(self.length)
+            elif property_name == 'Playing': 
+                return dbus.Boolean(self.playing)
         else:
             raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.UnknownProperty',
                                                 f'No such property {property_name}')

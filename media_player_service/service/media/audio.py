@@ -1,8 +1,8 @@
 import dbus.service
 import subprocess
 from overrides import override
-from media import Media
-from interface_names import MEDIA_INTERFACE, AUDIO_INTERFACE
+from media.media import Media
+from common.interface_names import MEDIA_INTERFACE, AUDIO_INTERFACE
 from app_version import VERSION
 
 class AudioProperties:

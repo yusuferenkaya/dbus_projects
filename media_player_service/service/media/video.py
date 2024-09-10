@@ -3,10 +3,10 @@ import subprocess
 import ffmpeg
 from fractions import Fraction
 from overrides import override
-from media import Media
-from audio import AudioProperties  
+from media.media import Media
+from media.audio import AudioProperties  
 import os
-from interface_names import MEDIA_INTERFACE, AUDIO_INTERFACE, VIDEO_INTERFACE
+from common.interface_names import MEDIA_INTERFACE, AUDIO_INTERFACE, VIDEO_INTERFACE
 from app_version import VERSION
 
 class Video(Media):
